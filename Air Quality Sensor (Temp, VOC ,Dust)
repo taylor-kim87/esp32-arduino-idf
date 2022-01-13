@@ -1,0 +1,123 @@
+#include "esp_timer.h"
+#include <GP2YDustSensor.h>
+#include <OneWire.h>
+#include <DFRobot_SGP40.h>
+#include <Wire.h>
+
+//Set 18B20 DQ pin number 
+OneWire ds(15); 
+//getTemp function call
+  void getTemp();
+
+  int rec=0;
+  float temperature = -1000; 
+//Set SGP40 pin (21,22)
+DFRobot_SGP40    mySgp40(&Wire);
+
+//Set Dust sensor pin (35,34)
+const uint8_t SHARP_LED_PIN = 35;   // Sharp Dust/particle sensor Led Pin
+const uint8_t SHARP_VO_PIN = 34;    // Sharp Dust/particle analog out pin used for reading 
+GP2YDustSensor dustSensor(GP2YDustSensorType::GP2Y1014AU0F, SHARP_LED_PIN, SHARP_VO_PIN);
+
+
+
+void setup() {
+  Serial.begin(115200);
+ 
+    dustSensor.begin();
+    Serial.println("sgp40 is starting, the reading can be taken after 10 seconds...");
+  /*
+   * Sensor preheat time: 10s
+   * duration: init wait time. Unit: ms. It is suggested: duration>=10000ms
+   */
+    while(mySgp40.begin(/*duration = */10000) !=true){
+    Serial.println("failed to init chip, please check if the chip connection is fine");
+    delay(1000);
+  }
+}
+
+void loop() {
+
+// dust sensor
+  Serial.println("--------------------------------------------");
+  Serial.println("AQ Digital Sensor");
+  Serial.println("--------------------------------------------");
+  delay(1000);
+  Serial.print("Dust density: ");
+  Serial.print(dustSensor.getDustDensity());
+  Serial.print(" ug/m3; Running average: ");
+  Serial.print(dustSensor.getRunningAverage());
+  Serial.println(" ug/m3");
+  delay(500);
+
+//SPG40 (VOC)
+   uint16_t index = mySgp40.getVoclndex();
+   Serial.print("vocIndex = ");
+   Serial.println(index);
+   delay(500);
+
+//18B20
+   getTemp();
+   Serial.print("Temp : ");
+   Serial.print(temperature);
+   Serial.println(" Celsius");
+   delay(2000);
+
+}
+void getTemp(){
+ 
+  
+    
+    byte data[12];
+    byte addr[8];
+
+     if ( !ds.search(addr)) {
+           //no more sensors on chain, reset search
+           ds.reset_search();
+           Serial.println("no addr found");
+           rec++;
+           Serial.println("rec = "+ rec);
+           temperature = -1000;
+           return;
+            }
+
+     if ( OneWire::crc8( addr, 7) != addr[7]) {
+           Serial.println("CRC is not valid!");
+           rec++;
+           Serial.println("rec = "+ rec);
+           temperature = -1000;
+           return;
+          }
+
+      if ( addr[0] != 0x10 && addr[0] != 0x28) {
+           Serial.print("Device is not recognized");
+           rec++;
+           Serial.println("rec = "+ rec);
+           temperature = -1000;
+           return;
+          }
+
+    ds.reset();
+    ds.select(addr);
+    ds.write(0x44,1); // start conversion, with parasite power on at the end
+
+    byte present = ds.reset();
+    ds.select(addr);    
+    ds.write(0xBE); // Read Scratchpad
+
+  
+        for (int i = 0; i < 9; i++) { // we need 9 bytes
+            data[i] = ds.read();
+            }
+  
+    ds.reset_search();
+  
+    byte MSB = data[1];
+    byte LSB = data[0];
+
+    float tempRead = ((MSB << 8) | LSB); //using two's compliment
+    float TemperatureSum = tempRead / 16;
+    //Serial.println("rec = 0");
+    rec = 0;  
+    temperature = TemperatureSum;
+}   
