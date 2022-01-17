@@ -1,4 +1,5 @@
 #include "esp_timer.h"
+#include "MQ7.h"
 #include <GP2YDustSensor.h>
 #include <OneWire.h>
 #include <DFRobot_SGP40.h>
@@ -19,7 +20,8 @@ const uint8_t SHARP_LED_PIN = 35;   // Sharp Dust/particle sensor Led Pin
 const uint8_t SHARP_VO_PIN = 34;    // Sharp Dust/particle analog out pin used for reading 
 GP2YDustSensor dustSensor(GP2YDustSensorType::GP2Y1014AU0F, SHARP_LED_PIN, SHARP_VO_PIN);
 
-
+//Set MQ7.h pin
+  MQ7 mq7(32,5.0);
 
 void setup() {
   Serial.begin(115200);
@@ -55,6 +57,12 @@ void loop() {
    Serial.print("vocIndex = ");
    Serial.println(index);
    delay(500);
+   
+//MQ-7
+   Serial.print("Coindex = ");
+   Serial.print(mq7.getPPM());
+   Serial.println(" ppm");
+   delay(500);
 
 //18B20
    getTemp();
@@ -62,6 +70,8 @@ void loop() {
    Serial.print(temperature);
    Serial.println(" Celsius");
    delay(2000);
+
+   
 
 }
 void getTemp(){
